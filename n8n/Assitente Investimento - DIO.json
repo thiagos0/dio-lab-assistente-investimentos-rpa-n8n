@@ -1,0 +1,175 @@
+{
+  "name": "Assitente Investimento - DIO",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "clients",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        -144
+      ],
+      "id": "0235ba3a-b46e-4376-bb76-cf1529714042",
+      "name": "Webhook",
+      "webhookId": "60322e90-be2d-421d-9209-e6254713708a"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json.clientes}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1072,
+        -144
+      ],
+      "id": "6840c82a-e6a5-4bc4-b017-d4cf8453f9ba",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "url": "https://digitalinnovationone.github.io/dio-lab-assistente-investimentos-rpa-n8n/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        -64
+      ],
+      "id": "4c72186b-3136-4603-8fb3-1fc574ed5170",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst htmlRaw = $json.data ?? $json.body ?? $json;\nconst html = typeof htmlRaw === \"string\"\n  ? htmlRaw\n  : JSON.stringify(htmlRaw);\n\n// Localiza as linhas da tabela\nconst linhas = html.match(/<tr\\b[^>]*>[\\s\\S]*?<\\/tr>/gi) ?? [];\n\nfunction limparHTML(valor) {\n  return valor\n    .replace(/<[^>]*>/g, \"\")\n    .replace(/&nbsp;/gi, \" \")\n    .replace(/&amp;/gi, \"&\")\n    .replace(/&lt;/gi, \"<\")\n    .replace(/&gt;/gi, \">\")\n    .replace(/&quot;/gi, '\"')\n    .replace(/&#39;|&apos;/gi, \"'\")\n    .trim();\n}\n\nconst clientes = linhas\n  .map(linha => {\n    const colunas = [\n      ...linha.matchAll(/<t[dh]\\b[^>]*>([\\s\\S]*?)<\\/t[dh]>/gi)\n    ].map(coluna => limparHTML(coluna[1]));\n\n    if (colunas.length !== 4) return null;\n\n    // Ignora o cabeçalho da tabela\n    if (colunas[0].toLowerCase() === \"nome\") return null;\n\n    const [nome, email, saldoTexto, perfil] = colunas;\n\n    const saldo = Number(\n      saldoTexto.replace(/[^\\d,.-]/g, \"\").replace(/\\./g, \"\").replace(\",\", \".\")\n    ) || 0;\n\n    return {\n      nome,\n      email,\n      saldo,\n      perfil\n    };\n  })\n  .filter(Boolean);\n\nreturn [\n  {\n    json: {\n      clientes\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -64
+      ],
+      "id": "f906fc8c-c3f6-4c47-b259-32bb8c8a9f90",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        672,
+        -144
+      ],
+      "id": "fbfae369-d6f6-4632-aaac-597cae9a12a3",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst entrada = $json.body ?? $json.data ?? $json;\n\n// Aceita tanto um objeto quanto uma string JSON\nconst dados = typeof entrada === \"string\"\n  ? JSON.parse(entrada)\n  : entrada;\n\n// Seu arquivo utiliza a chave \"clintes\"\nconst clientes = dados.clientes ?? dados.clintes ?? [];\n\nconst investimentosPorPerfil = {\n  Conservador: [\n    \"Tesouro Selic\",\n    \"CDB com liquidez diária\",\n    \"LCI/LCA\"\n  ],\n  Moderado: [\n    \"CDB\",\n    \"Tesouro IPCA+\",\n    \"Fundos de renda fixa\",\n    \"Fundos imobiliários\"\n  ],\n  Arrojado: [\n    \"Ações\",\n    \"ETFs de ações\",\n    \"Fundos imobiliários\",\n    \"Fundos multimercado\"\n  ]\n};\n\nconst resultado = clientes.map(cliente => {\n  const perfil = String(cliente.perfil ?? \"\").trim();\n\n  return {\n    ...cliente,\n    tiposInvestimento: investimentosPorPerfil[perfil] ?? [],\n    perfilEncontrado: Boolean(investimentosPorPerfil[perfil])\n  };\n});\n\nreturn resultado.map(cliente => ({\n  json: cliente\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        -144
+      ],
+      "id": "65c36274-633b-4e0a-bfb0-2794ebe39793",
+      "name": "Code in JavaScript1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "27dd3666-9395-4608-afab-5f4e575d7605",
+  "meta": {
+    "instanceId": "7b45ff3a544cfe716e5bcfa4250e2cca4f727e2f92ae0c84f34eed5e4e5dab60"
+  },
+  "nodeGroups": [],
+  "id": "mrO0NKxYRr0pRn5o",
+  "tags": []
+}
